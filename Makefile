@@ -4,6 +4,7 @@
 ifndef PRU_CGT
 define ERROR_BODY
 
+
 ************************************************************
 PRU_CGT environment variable is not set. Examples given:
 (Linux) export PRU_CGT=/home/jason/ti/ccs_v6_1_0/ccsv6/tools/compiler/ti-cgt-pru_2.1.0
