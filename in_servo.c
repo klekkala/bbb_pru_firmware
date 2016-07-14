@@ -18,8 +18,9 @@
 #include <linux/sysfs.h> 
 #include <linux/init.h> 
 #include <linux/fs.h>
-#include <linux/string.h> 
- 
+#include <linux/string.h>
+#include <linux/remoteproc.h> 
+
 static struct kobject *pru_kobject;
 static int pru_servo;
 
