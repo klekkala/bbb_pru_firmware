@@ -32,10 +32,10 @@
  */
 
 #include <stdint.h>
-#include <pru_cfg.h>
-#include <pru_ctrl.h>
-#include <pru_intc.h>
-#include "resource_table_empty.h"
+#include "pru_cfg.h"
+#include "pru_ctrl.h"
+#include "pru_intc.h"
+#include "resource_table.h"
 
 volatile register uint32_t __R30;
 volatile register uint32_t __R31;
