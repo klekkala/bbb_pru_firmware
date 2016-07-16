@@ -72,9 +72,18 @@ void main(void)
 	PRU0_CTRL.CTPPR1 = 0x00003000;
 
 	/* Load value from DDR, decrement, and store it in L3 */
-	score = pDdr[0];
-	score--;
-	CT_L3 = score;
+	index = pDdr[0];
+	pwm = pDdr[index];
+	//CT_L3 = score;
+
+	/* Toggle GPO pins TODO: Figure out which to use */
+	gpio = 0x000F;
+
+	/* TODO: Create stop condition, else it will toggle indefinitely */
+	while (1) {
+		__R30 ^= gpio;
+		__delay_cycles(100000000);
+	}
 
 	/* Halt PRU core */
 	__halt();
