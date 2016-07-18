@@ -1,3 +1,6 @@
+/* Modified by Kiran Kumar Lekkala <kiran4399@gmail.com>
+*/
+
 /*
  * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -53,37 +56,39 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 void main(void)
 {
 	uint32_t *pDdr = (uint32_t *) &CT_DDR;
-	uint32_t score;
+	uint32_t pwm;
 
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
 
-	/* Wait until receipt of interrupt on host 0 */
-	while ((__R31 & 0x40000000) == 0) {
-	}
+	while(){
 
-	/* Clear system event in SECR1 */
-	CT_INTC.SECR1 = 0x1;
+		/* Wait until receipt of interrupt on host 0 */
+		while ((__R31 & 0x40000000) == 0) {
+		}
 
-	/* Clear system event enable in ECR1 */
-	CT_INTC.ECR1 = 0x1;
+		/* Clear system event in SECR1 */
+		CT_INTC.SECR1 = 0x1;
 
-	/* Point C30 (L3) to 0x3000 offset and C31 (DDR) to 0x0 offset */
-	PRU0_CTRL.CTPPR1 = 0x00003000;
+		/* Clear system event enable in ECR1 */
+		CT_INTC.ECR1 = 0x1;
 
-	/* Load value from DDR, decrement, and store it in L3 */
-	index = pDdr[0];
-	pwm = pDdr[index];
-	//CT_L3 = score;
+		/* Point C30 (L3) to 0x3000 offset and C31 (DDR) to 0x0 offset */
+		PRU0_CTRL.CTPPR1 = 0x00003000;
 
-	/* Toggle GPO pins TODO: Figure out which to use */
-	gpio = 0x000F;
+		/* Load value from DDR, decrement, and store it in L3 */
+		index = pDdr[0];
+		pwm = pDdr[index];
+		//CT_L3 = index;
 
-	/* TODO: Create stop condition, else it will toggle indefinitely */
-	while (1) {
+		/* Toggle GPO pins TODO: Figure out which to use */
+		gpio = 0x000F;
+
+		/* TODO: Create stop condition, else it will toggle indefinitely */
 		__R30 ^= gpio;
 		__delay_cycles(100000000);
-	}
+		
+		}
 
 	/* Halt PRU core */
 	__halt();
