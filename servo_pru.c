@@ -52,41 +52,51 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 
 #define HOST_NUM	2
 #define CHAN_NUM	2
+#define SERVO_NUM_PIN 7
+
 
 void main(void)
 {
 	uint32_t *pDdr = (uint32_t *) &CT_DDR;
-	uint32_t pwm;
+	uint32_t pin;
 
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
 
+	/* Clear system event in SECR1 */
+	CT_INTC.SECR1 = 0x1;
+
+	/* Clear system event enable in ECR1 */
+	CT_INTC.ECR1 = 0x1;
+
+	/* Point C30 (L3) to 0x3000 offset and C31 (DDR) to 0x0 offset */
+	PRU0_CTRL.CTPPR1 = 0x00003000;
+
+
+
 	while(){
 
-		/* Wait until receipt of interrupt on host 0 */
-		while ((__R31 & 0x40000000) == 0) {
+		/* Pool for any receipt of interrupt on host 0 */
+		if ((__R31 & 0x40000000) != 0) {
+			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				pulse_width[pin] = *(pDdR + offset);
+				offset+=4;
+			}
 		}
 
-		/* Clear system event in SECR1 */
-		CT_INTC.SECR1 = 0x1;
+		if(pule_width == 0){
+			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				if(pulse_width[pin] > 0){
+					mask |= 1 << pin;
+				}
+			}
+		}
 
-		/* Clear system event enable in ECR1 */
-		CT_INTC.ECR1 = 0x1;
-
-		/* Point C30 (L3) to 0x3000 offset and C31 (DDR) to 0x0 offset */
-		PRU0_CTRL.CTPPR1 = 0x00003000;
-
-		/* Load value from DDR, decrement, and store it in L3 */
-		index = pDdr[0];
-		pwm = pDdr[index];
-		//CT_L3 = index;
-
-		/* Toggle GPO pins TODO: Figure out which to use */
-		gpio = 0x000F;
-
-		/* TODO: Create stop condition, else it will toggle indefinitely */
-		__R30 ^= gpio;
-		__delay_cycles(100000000);
+		else{
+			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				mask &= ~(1<<pin);
+			}
+		}
 		
 		}
 
