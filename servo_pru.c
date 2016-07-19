@@ -52,7 +52,7 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 
 #define HOST_NUM	2
 #define CHAN_NUM	2
-#define SERVO_NUM_PIN 7
+#define SERVO_NUM_PIN 8
 
 
 void main(void)
