@@ -41,7 +41,6 @@
 #include "resource_table.h"
 
 volatile register uint32_t __R30;
-volatile register uint32_t __R31;
 
 /* Mapping Constant table register to variable */
 volatile far uint32_t CT_L3 __attribute__((cregister("L3OCMC", near), peripheral));
@@ -57,10 +56,11 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 
 void main(void)
 {
+	volatile uint32_t mask;
 	uint32_t *pDdr = (uint32_t *) &CT_DDR;
-	uint32_t pulse_width[SERVO_NUM_PIN];
+	double pulse_width[SERVO_NUM_PIN], time_step = 1/200;
 	double period = 1/50;
-
+	//int i=0;
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
 
@@ -80,34 +80,29 @@ void main(void)
 		/* Pool for any receipt of interrupt on host 0 */
 		if ((__R31 & 0x40000000) != 0) {
 			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
-				pulse_width[pin] = *(pDdR + offset);
-				offset+=4;
+				pulse_width[pin] = *(pDdR + 4*(pin-1));
+				pulse_width[pin] *= 0.01*period;
+				pulse_original[pin] = pulse_width[pin];
 			}
+			offset = 0;
 		}
 
-		if(pule_width == 0){
-			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+		for(pin=1;pin<=SERVO_NUM_PIN;pin++){
 				if(pulse_width[pin] > 0){
 					mask |= 1 << pin;
+					pulse_width[pin] -= time_step;
 				}
-			}
+
+				else if(pulse_width[pin]<=-period+pulse_original[pin]){
+					pulse_width[pin] = pulse_original[pin];
+				}
+				else if(pulse_width[pin] < 0){
+					mask &= ~(1<<pin);
+					pulse_width[pin] -= time_step;
+				}
 		}
 
-		else{
-			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
-				mask &= ~(1<<pin);
-			}
-		}
-
-		__R30 = mask
-  		pulse_width += period;
-  		if((pulse_width) > period){
-  			// Restart cycle
-  			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
-				pulse_width[pin] = 0;
-				}
-  		}
-    		
+		__R30 ^= mask;
 		
 		}
 
