@@ -41,6 +41,7 @@
 #include "resource_table.h"
 
 volatile register uint32_t __R30;
+volatile register uint32_t __R31;
 
 /* Mapping Constant table register to variable */
 volatile far uint32_t CT_L3 __attribute__((cregister("L3OCMC", near), peripheral));
@@ -57,9 +58,10 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 void main(void)
 {
 	volatile uint32_t mask;
-	uint32_t *pDdr = (uint32_t *) &CT_DDR;
-	double pulse_width[SERVO_NUM_PIN], time_step = 1/200;
+	volatile uint32_t *pDdr = (uint32_t *) &CT_DDR;
+	double pulse_width[SERVO_NUM_PIN],pulse_original[SERVO_NUM_PIN], time_step = 1/200;
 	double period = 1/50;
+	int pin;
 	//int i=0;
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
@@ -84,7 +86,6 @@ void main(void)
 				pulse_width[pin] *= 0.01*period;
 				pulse_original[pin] = pulse_width[pin];
 			}
-			offset = 0;
 		}
 
 		for(pin=1;pin<=SERVO_NUM_PIN;pin++){
