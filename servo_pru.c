@@ -1,3 +1,6 @@
+/* Modified by Kiran Kumar Lekkala <kiran4399@gmail.com>
+*/
+
 /*
  * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -49,18 +52,17 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 
 #define HOST_NUM	2
 #define CHAN_NUM	2
+#define SERVO_NUM_PIN 7
+
 
 void main(void)
 {
 	uint32_t *pDdr = (uint32_t *) &CT_DDR;
-	uint32_t score;
+	uint32_t pulse_width[SERVO_NUM_PIN];
+	double period = 1/50;
 
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
-
-	/* Wait until receipt of interrupt on host 0 */
-	while ((__R31 & 0x40000000) == 0) {
-	}
 
 	/* Clear system event in SECR1 */
 	CT_INTC.SECR1 = 0x1;
@@ -71,10 +73,43 @@ void main(void)
 	/* Point C30 (L3) to 0x3000 offset and C31 (DDR) to 0x0 offset */
 	PRU0_CTRL.CTPPR1 = 0x00003000;
 
-	/* Load value from DDR, decrement, and store it in L3 */
-	score = pDdr[0];
-	score--;
-	CT_L3 = score;
+
+
+	while(){
+
+		/* Pool for any receipt of interrupt on host 0 */
+		if ((__R31 & 0x40000000) != 0) {
+			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				pulse_width[pin] = *(pDdR + offset);
+				offset+=4;
+			}
+		}
+
+		if(pule_width == 0){
+			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				if(pulse_width[pin] > 0){
+					mask |= 1 << pin;
+				}
+			}
+		}
+
+		else{
+			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				mask &= ~(1<<pin);
+			}
+		}
+
+		__R30 = mask
+  		pulse_width += period;
+  		if((pulse_width) > period){
+  			// Restart cycle
+  			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				pulse_width[pin] = 0;
+				}
+  		}
+    		
+		
+		}
 
 	/* Halt PRU core */
 	__halt();
