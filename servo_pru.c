@@ -62,7 +62,7 @@ void main(void)
 	double pulse_width[SERVO_NUM_PIN],pulse_original[SERVO_NUM_PIN], time_step = 1/200;
 	double period = 1/50;
 	int pin;
-	//int i=0;
+	int i=0;
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
 
@@ -77,7 +77,7 @@ void main(void)
 
 
 
-	while(){
+	while(++i<10000){
 
 		/* Pool for any receipt of interrupt on host 0 */
 		if ((__R31 & 0x40000000) != 0) {
