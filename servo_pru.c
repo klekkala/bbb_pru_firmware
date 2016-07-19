@@ -58,7 +58,7 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 void main(void)
 {
 	volatile uint32_t mask;
-	volatile uint32_t *pDdr = (uint32_t *) &CT_DDR;
+	volatile double *pDdr = (uint32_t *) &CT_DDR;
 	double pulse_width[SERVO_NUM_PIN],pulse_original[SERVO_NUM_PIN], time_step = 1/200;
 	double period = 1/50;
 	int pin;
