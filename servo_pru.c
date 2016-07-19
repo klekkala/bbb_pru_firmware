@@ -77,7 +77,7 @@ void main(void)
 
 
 
-	while(){
+	while(1){
 
 		/* Pool for any receipt of interrupt on host 0 */
 		if ((__R31 & 0x40000000) != 0) {
