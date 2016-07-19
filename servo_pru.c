@@ -82,7 +82,7 @@ void main(void)
 		/* Pool for any receipt of interrupt on host 0 */
 		if ((__R31 & 0x40000000) != 0) {
 			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
-				pulse_width[pin] = *(pDdR + 4*(pin-1));
+				pulse_width[pin] = pDdR[pin-1];
 				pulse_width[pin] *= 0.01*period;
 				pulse_original[pin] = pulse_width[pin];
 			}
