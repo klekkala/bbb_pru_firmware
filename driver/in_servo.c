@@ -1,4 +1,4 @@
-/*
+am/*
  * Driver for PRU Servo operation.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,6 +33,7 @@ static void * data_pointer;
 //struct dev_t stores the major and minor numbers
 
 static dev_t in_servo;
+int error_ret;
 
 //To register as a character device in the kernel
 static struct cdev pru_servo;
@@ -51,13 +52,21 @@ static int closechardevice(struct inode *i, struct file *f)
     return 0;
 }
 
-static ssize_t pru_servo_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+static ssize_t pru_servo_write(struct kobject *kobj, struct kobj_attribute, char *buf)
 {
-  copy_from_user(mosi,buf,count);
+  copy_from_user(mosi,buf,4);
   uint8_t mosi_transfer=*mosi;
   iowrite8(count_servo,Data_pointer);
 }
 
+
+struct attribute_group = {
+    .name = "in_servo",
+};
+
+
+static struct kobj_attribute foo_attribute =__ATTR(foo, 0660, foo_show,
+                                                   foo_store);
 
 static struct file_operations file_ops =      
 {
@@ -93,8 +102,12 @@ static int __init pruservo_module_init (void)
     cl_servo = class_create(THIS_MODULE, "char1");
 
     //cl is populated for udev daemon to create the device file
-    dev_ret = device_create(cl_servo, NULL, in_servo, NULL, "servopru_device");
+    error_ret = sysfs_create_group(cl_servo, NULL, in_servo, NULL, "servopru_device");
 
+    if(error_ret){
+        pr_debug("failed to create the foo file in /sys/kernel/kobject_example \n");
+        return error;
+    }
     
     //Allocate memory for I/O.
     request_mem_region(0x4a310000, 32, "Data");

@@ -58,7 +58,8 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 void main(void)
 {
 	uint32_t *pDdr = (uint32_t *) &CT_DDR;
-	uint32_t pin;
+	uint32_t pulse_width[SERVO_NUM_PIN];
+	double period = 1/50;
 
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
@@ -97,6 +98,16 @@ void main(void)
 				mask &= ~(1<<pin);
 			}
 		}
+
+		__R30 = mask
+  		pulse_width += period;
+  		if((pulse_width) > period){
+  			// Restart cycle
+  			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+				pulse_width[pin] = 0;
+				}
+  		}
+    		
 		
 		}
 
