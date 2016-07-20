@@ -52,7 +52,7 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 
 #define HOST_NUM	2
 #define CHAN_NUM	2
-#define SERVO_NUM_PIN 8
+#define SERVO_NUM_PIN	8
 
 
 void main(void)
@@ -81,16 +81,16 @@ void main(void)
 
 		/* Pool for any receipt of interrupt on host 0 */
 		if ((__R31 & 0x40000000) != 0) {
-			for(pin=1;pin<=SERVO_NUM_PIN;pin++){
-				pulse_width[pin] = pDdR[pin-1];
+			for(pin=0;pin<=SERVO_NUM_PIN-1;pin++){
+				pulse_width[pin] = pDdR[pin];
 				pulse_width[pin] *= 0.01*period;
 				pulse_original[pin] = pulse_width[pin];
 			}
 		}
 
-		for(pin=1;pin<=SERVO_NUM_PIN;pin++){
+		for(pin=0;pin<=SERVO_NUM_PIN-1;pin++){
 				if(pulse_width[pin] > 0){
-					mask |= 1 << pin;
+					mask |= 1 << (pin+1);
 					pulse_width[pin] -= time_step;
 				}
 
@@ -98,7 +98,7 @@ void main(void)
 					pulse_width[pin] = pulse_original[pin];
 				}
 				else if(pulse_width[pin] < 0){
-					mask &= ~(1<<pin);
+					mask &= ~(1<<(pin+1));
 					pulse_width[pin] -= time_step;
 				}
 		}
