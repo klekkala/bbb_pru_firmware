@@ -10,12 +10,92 @@
 
 static void * Data_pointer; 
 int *servo_chain;
-#define MAX_SERVOS 1024
+#define MAX_servoS 1024
 
 static DEFINE_MUTEX(servo_lookup_lock);
 static DEFINE_MUTEX(servo_lock);
 static LIST_HEAD(servo_chips);
-static DECLARE_BITMAP(allocated_servos, MAX_SERVOS);
+static DECLARE_BITMAP(allocated_servos, MAX_servoS);
+
+
+static int servo_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct resource *r;
+	struct clk *clk;
+	struct ehrpwm_pwm_chip *pc;
+	u16 status;
+
+	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
+	if (!pc)
+		return -ENOMEM;
+
+	clk = devm_clk_get(pdev->dev.parent, "fck");
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		return PTR_ERR(clk);
+	}
+
+	pc->clk_rate = clk_get_rate(clk);
+	if (!pc->clk_rate) {
+		dev_err(&pdev->dev, "failed to get clock rate\n");
+		return -EINVAL;
+	}
+
+	pc->chip.dev = &pdev->dev;
+	pc->chip.ops = &ehrpwm_pwm_ops;
+	pc->chip.of_xlate = of_pwm_xlate_with_flags;
+	pc->chip.of_pwm_n_cells = 3;
+	pc->chip.base = -1;
+	pc->chip.npwm = NUM_PWM_CHANNEL;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pc->mmio_base))
+		return PTR_ERR(pc->mmio_base);
+
+	/* Acquire tbclk for Time Base EHRPWM submodule */
+	pc->tbclk = devm_clk_get(&pdev->dev, "tbclk");
+	if (IS_ERR(pc->tbclk)) {
+		dev_err(&pdev->dev, "Failed to get tbclk\n");
+		return PTR_ERR(pc->tbclk);
+	}
+
+	ret = clk_prepare(pc->tbclk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prepare() failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = pwmchip_add(&pc->chip);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+		return ret;
+	}
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
+	status = pwmss_submodule_state_change(pdev->dev.parent,
+			PWMSS_EPWMCLK_EN);
+	if (!(status & PWMSS_EPWMCLK_EN_ACK)) {
+		dev_err(&pdev->dev, "PWMSS config space clock enable failed\n");
+		ret = -EINVAL;
+		goto pwmss_clk_failure;
+	}
+
+	pm_runtime_put_sync(&pdev->dev);
+
+	platform_set_drvdata(pdev, pc);
+	return 0;
+
+pwmss_clk_failure:
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	pwmchip_remove(&pc->chip);
+	clk_unprepare(pc->tbclk);
+	return ret;
+}
 
 struct servo_export {
 	struct device child;
@@ -34,8 +114,8 @@ struct servo_chip;
  * period
  */
 enum servo_polarity {
-	SERVO_POLARITY_NORMAL,
-	SERVO_POLARITY_INVERSED,
+	servo_POLARITY_NORMAL,
+	servo_POLARITY_INVERSED,
 };
 
 enum {
@@ -105,7 +185,7 @@ int servo_set_polarity(struct servo_device *servo, enum servo_polarity polarity)
 
 static inline enum servo_polarity servo_get_polarity(const struct servo_device *servo)
 {
-	return servo ? servo->polarity : SERVO_POLARITY_NORMAL;
+	return servo ? servo->polarity : servo_POLARITY_NORMAL;
 }
 
 /**
@@ -379,11 +459,11 @@ static ssize_t polarity_show(struct device *child,
 	const char *polarity = "unknown";
 
 	switch (servo_get_polarity(servo)) {
-	case SERVO_POLARITY_NORMAL:
+	case servo_POLARITY_NORMAL:
 		polarity = "normal";
 		break;
 
-	case SERVO_POLARITY_INVERSED:
+	case servo_POLARITY_INVERSED:
 		polarity = "inversed";
 		break;
 	}
@@ -400,9 +480,9 @@ static ssize_t polarity_store(struct device *child,
 	int ret;
 
 	if (sysfs_streq(buf, "normal"))
-		polarity = SERVO_POLARITY_NORMAL;
+		polarity = servo_POLARITY_NORMAL;
 	else if (sysfs_streq(buf, "inversed"))
-		polarity = SERVO_POLARITY_INVERSED;
+		polarity = servo_POLARITY_INVERSED;
 	else
 		return -EINVAL;
 
@@ -411,7 +491,90 @@ static ssize_t polarity_store(struct device *child,
 	return ret ? : size;
 }
 
+/**
+ * servo_put() - release a servo device
+ * @servo: servo device
+ */
+void servo_put(struct servo_device *servo)
+{
+	if (!servo)
+		return;
 
+	mutex_lock(&servo_lock);
+
+	if (!test_and_clear_bit(SERVOF_REQUESTED, &servo->flags)) {
+		pr_warn("servo device already freed\n");
+		goto out;
+	}
+
+	if (servo->chip->ops->free)
+		servo->chip->ops->free(servo->chip, servo);
+
+	servo->label = NULL;
+
+	module_put(servo->chip->ops->owner);
+out:
+	mutex_unlock(&servo_lock);
+}
+EXPORT_SYMBOL_GPL(servo_put);
+
+
+static int servo_device_request(struct servo_device *servo, const char *label)
+{
+	int err;
+
+	if (test_bit(SERVOF_REQUESTED, &servo->flags))
+		return -EBUSY;
+
+	if (!try_module_get(servo->chip->ops->owner))
+		return -ENODEV;
+
+	if (servo->chip->ops->request) {
+		err = servo->chip->ops->request(servo->chip, servo);
+		if (err) {
+			module_put(servo->chip->ops->owner);
+			return err;
+		}
+	}
+
+	set_bit(SERVOF_REQUESTED, &servo->flags);
+	servo->label = label;
+
+	return 0;
+}
+
+
+/**
+ * servo_request_from_chip() - request a servo device relative to a servo chip
+ * @chip: servo chip
+ * @index: per-chip index of the servo to request
+ * @label: a literal description string of this servo
+ *
+ * Returns: A pointer to the servo device at the given index of the given servo
+ * chip. A negative error code is returned if the index is not valid for the
+ * specified servo chip or if the servo device cannot be requested.
+ */
+struct servo_device *servo_request_from_chip(struct servo_chip *chip,
+					 unsigned int index,
+					 const char *label)
+{
+	struct servo_device *servo;
+	int err;
+
+	if (!chip || index >= chip->nservo)
+		return ERR_PTR(-EINVAL);
+
+	mutex_lock(&servo_lock);
+	servo = &chip->servos[index];
+
+	err = servo_device_request(servo, label);
+	if (err < 0)
+		servo = ERR_PTR(err);
+
+	mutex_unlock(&servo_lock);
+	return servo;
+}
+EXPORT_SYMBOL_GPL(servo_request_from_chip);
 
 static DEVICE_ATTR_RW(period);
 static DEVICE_ATTR_RW(duty_cycle);
@@ -427,12 +590,140 @@ static struct attribute *servo_attrs[] = {
 };
 ATTRIBUTE_GROUPS(servo);
 
+static void servo_export_release(struct device *child)
+{
+	struct servo_export *export = child_to_servo_export(child);
 
+	kfree(export);
+}
+
+static int servo_export_child(struct device *parent, struct servo_device *servo)
+{
+	struct servo_export *export;
+	int ret;
+
+	if (test_and_set_bit(SERVOF_EXPORTED, &servo->flags))
+		return -EBUSY;
+
+	export = kzalloc(sizeof(*export), GFP_KERNEL);
+	if (!export) {
+		clear_bit(SERVOF_EXPORTED, &servo->flags);
+		return -ENOMEM;
+	}
+
+	export->servo = servo;
+
+	export->child.release = servo_export_release;
+	export->child.parent = parent;
+	export->child.devt = MKDEV(0, 0);
+	export->child.groups = servo_groups;
+	dev_set_name(&export->child, "servo%u", servo->hwservo);
+
+	ret = device_register(&export->child);
+	if (ret) {
+		clear_bit(SERVOF_EXPORTED, &servo->flags);
+		kfree(export);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int servo_unexport_match(struct device *child, void *data)
+{
+	return child_to_servo_device(child) == data;
+}
+
+static int servo_unexport_child(struct device *parent, struct servo_device *servo)
+{
+	struct device *child;
+
+	if (!test_and_clear_bit(SERVOF_EXPORTED, &servo->flags))
+		return -ENODEV;
+
+	child = device_find_child(parent, servo, servo_unexport_match);
+	if (!child)
+		return -ENODEV;
+
+	/* for device_find_child() */
+	put_device(child);
+	device_unregister(child);
+	servo_put(servo);
+
+	return 0;
+}
+
+static ssize_t export_store(struct device *parent,
+			    struct device_attribute *attr,
+			    const char *buf, size_t len)
+{
+	struct servo_chip *chip = dev_get_drvdata(parent);
+	struct servo_device *servo;
+	unsigned int hwservo;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &hwservo);
+	if (ret < 0)
+		return ret;
+
+	if (hwservo >= chip->nservo)
+		return -ENODEV;
+
+	servo = servo_request_from_chip(chip, hwservo, "sysfs");
+	if (IS_ERR(servo))
+		return PTR_ERR(servo);
+
+	ret = servo_export_child(parent, servo);
+	if (ret < 0)
+		servo_put(servo);
+
+	return ret ? : len;
+}
+static DEVICE_ATTR_WO(export);
+
+static ssize_t unexport_store(struct device *parent,
+			      struct device_attribute *attr,
+			      const char *buf, size_t len)
+{
+	struct servo_chip *chip = dev_get_drvdata(parent);
+	unsigned int hwservo;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &hwservo);
+	if (ret < 0)
+		return ret;
+
+	if (hwservo >= chip->nservo)
+		return -ENODEV;
+
+	ret = servo_unexport_child(parent, &chip->servos[hwservo]);
+
+	return ret ? : len;
+}
+static DEVICE_ATTR_WO(unexport);
+
+static ssize_t nservo_show(struct device *parent, struct device_attribute *attr,
+			 char *buf)
+{
+	const struct servo_chip *chip = dev_get_drvdata(parent);
+
+	return sprintf(buf, "%u\n", chip->nservo);
+}
+static DEVICE_ATTR_RO(nservo);
+
+static struct attribute *servo_chip_attrs[] = {
+	&dev_attr_export.attr,
+	&dev_attr_unexport.attr,
+	&dev_attr_nservo.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(servo_chip);
 
 static struct class servo_class = {
 	.name = "servo",
 	.owner = THIS_MODULE,
-	.dev_groups = servo_groups,
+	.dev_groups = servo_chip_groups,
+	//.probe = 
 };
 
 static int servochip_sysfs_match(struct device *parent, const void *data)
@@ -469,6 +760,7 @@ void servochip_sysfs_unexport(struct servo_chip *chip)
 	}
 }
 
+
 static int __init servo_sysfs_init(void)
 {
 	 //Allocate memory for I/O.
@@ -501,5 +793,5 @@ module_init(servo_sysfs_init);
 module_exit(servo_sysfs_exit);
 
 MODULE_AUTHOR("Kiran Kumar Lekkala <kiran4399@gmail.com>");
-MODULE_DESCRIPTION("Driver for PRU Servo");
+MODULE_DESCRIPTION("Driver for PRU servo");
 MODULE_LICENSE("GPL v2");
