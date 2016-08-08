@@ -2,12 +2,16 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
-
 #include <linux/poll.h>
+#include <linux/remoteproc.h>
+
 
 #define MAJORNUM 42
 
 struct class *hello_class;
+struct rproc *rproc_alloc(struct device *dev, const char *name,
+				const struct rproc_ops *ops,
+				const char *firmware, int len);
 
 static int hello_open(struct inode *inode, struct file *file);
 static int hello_release(struct inode *inode, struct file *file);
@@ -24,7 +28,7 @@ struct file_operations my_fops = {
 };
 
 
-static ssize_t hello_write(struct file *filp,const char __user *buf, size_t count,loff_t *f_pos)
+static ssize_t hello_write(struct file *filp,const char __user *buf, size_t count, loff_t *f_pos)
 {
 	copy_from_user(mosi,buf,count);
 	uint8_t mosi_transfer=*mosi;
@@ -44,6 +48,17 @@ int hello_init(void)
 	Data_pointer=ioremap(0x4a310000, 8);
 	//Allocate memeory to *mosi
 	mosi=kmalloc(sizeof(uint8_t), GFP_KERNEL);
+
+	int ret;
+
+	/* let's power on and boot our remote processor */
+	ret = rproc_boot(my_rproc);
+	if (ret) {
+		/*
+		 * something went wrong. handle it and leave.
+		 */
+	}
+
 	return 0;
 }
 
@@ -55,6 +70,9 @@ void hello_exit(void)
     iounmap(Data_pointer);
     Data_pointer=NULL;
     mosi=NULL;
+
+    /* let's shut it down now */
+	rproc_shutdown(my_rproc);
 }
 
 void register_device() {
