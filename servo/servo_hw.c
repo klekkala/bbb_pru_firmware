@@ -24,7 +24,7 @@
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const struct rproc_ops *ops,
 				const char *firmware, int len);
-				
+
 typedef struct
 {
 	unsigned int gpio_clear_set_reg;
@@ -85,10 +85,14 @@ int hw_init_pwm_device(void)
 	
 	printk(KERN_INFO "Pru initialization started\r\n");
 
-	if(pru_init() != PRU_ERROR_NO_ERROR)
-	{
-		printk(KERN_ERR "Pru initialization failed\r\n");
-		return -1;
+	int ret;
+
+	/* let's power on and boot our remote processor */
+	ret = rproc_boot(my_rproc);
+	if (ret) {
+
+		printk(KERN_ERR "Can not upload pru software\r\n");
+        return -1;
 	}
 
 	if(pru_upload(PWM_PRU, PRUCode, sizeof(PRUCode)) != PRU_ERROR_NO_ERROR)
@@ -139,7 +143,8 @@ unsigned char hw_get_position(int pwm_num)
 void hw_close_pwm_device(void)
 {
 	pru_halt(PWM_PRU);
-	pru_close();
+	/* let's shut it down now */
+	rproc_shutdown(my_rproc);
 }
 
 

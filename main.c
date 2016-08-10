@@ -103,7 +103,7 @@ void main(void)
 				}
 		}
 
-		__R30 ^= mask;
+		__R30 = mask;
 		
 		}
 
