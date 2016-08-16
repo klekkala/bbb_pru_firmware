@@ -2,8 +2,15 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/remoteproc.h>
-
+#include <asm/uaccess.h> //for copy_to_user and related functions
+#include <linux/ioport.h> //for allocating memory
+#include <asm/io.h> //for ioremap
 #include "servo_hw.h"
+
+uint16_t *set_val;
+uint8_t *get_val;
+
+static void * Data_pointer; 
 
 /***********************************    MACROS   ******************************************/
 #define _BIT(X) (1<<X)
@@ -12,9 +19,7 @@
 
 
 
-#define PWM_PRU 		PRU_ID_PRU0
-#define GPIO_NAME "PWM_GPIOS"
-
+//#define PWM_PRU 		PRU_ID_PRU0
 #define PWM_CHANNELS			7
 #define PWM_STEPS				8 /* always 8 */
 #define PWM_OUTPUT_PER_STEP 	((PWM_CHANNELS+PWM_STEPS-1)/PWM_STEPS)
@@ -54,28 +59,8 @@ int is_valid_signal(int num)
 {
 	if(num <0 || num>=PWM_CHANNELS)
 		return 0;
-	if(gpio_desc[num].bit_mask!=_BIT_EMPTY)
-		return 1;
-	return 0;
-}
 
-static  pwm_pru_mem_desc_t * s_init_pru_data_space(pru_id_t id)
-{
-	int i;
-	pwm_pru_mem_desc_t * result;
-	result = (pwm_pru_mem_desc_t *)pru_get_memory_space()->PRU_data_ram[id];
-	if(result == NULL)
-	{
-		return NULL;
-	}
-	result->servo_per_step = PWM_OUTPUT_PER_STEP;
-	for(i=0; i< PWM_CHANNELS; i++)
-	{
-		result->pwm_step[i/PWM_OUTPUT_PER_STEP].pwm_pos[i%PWM_OUTPUT_PER_STEP] = SERVO_DEF_POS;
-		result->pwm_step[i/PWM_OUTPUT_PER_STEP].pwm_output[i%PWM_OUTPUT_PER_STEP].gpio_clear_set_reg = gpio_desc[i].gpio_clear_set_reg;
-		result->pwm_step[i/PWM_OUTPUT_PER_STEP].pwm_output[i%PWM_OUTPUT_PER_STEP].bit_mask = gpio_desc[i].bit_mask;
-	}
-	return result;
+	return 1;
 }
 
 
@@ -88,25 +73,25 @@ int hw_init_pwm_device(void)
 	int ret;
 
 	/* let's power on and boot our remote processor */
-	ret = rproc_boot(my_rproc);
+	/*ret = rproc_boot(my_rproc);
 	if (ret) {
 
 		printk(KERN_ERR "Can not upload pru software\r\n");
         return -1;
 	}
 
-	if(pru_upload(PWM_PRU, PRUCode, sizeof(PRUCode)) != PRU_ERROR_NO_ERROR)
-    {
-		printk(KERN_ERR "Can not upload pru software\r\n");
-        return -1;
-    }
-	pru_servo_desc = s_init_pru_data_space(PWM_PRU);
-
    	if(pru_run(PWM_PRU) != PRU_ERROR_NO_ERROR)
 	{
    		printk(KERN_ERR "Unable to start pru\r\n");
 		return -1;
-	}
+	}*/
+
+	//Allocate memory for I/O.
+	request_mem_region(0x4a310000, 14, "Data");
+	//Ioremap returns a virtual address in Data_pointer.
+	Data_pointer=ioremap(0x4a310000, 14);
+	//Allocate memeory to *mosi
+	set_val=kmalloc(sizeof(uint16_t), GFP_KERNEL);
 
 	return 0;
 }
@@ -142,9 +127,7 @@ unsigned char hw_get_position(int pwm_num)
 
 void hw_close_pwm_device(void)
 {
-	pru_halt(PWM_PRU);
-	/* let's shut it down now */
-	rproc_shutdown(my_rproc);
+	//rproc_shutdown(my_rproc);
 }
 
 
