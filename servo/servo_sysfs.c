@@ -11,8 +11,10 @@
 #include <linux/fcntl.h> /* O_ACCMODE */
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
-#include "servo_hw.h"
-
+#include <linux/remoteproc.h>
+#include <asm/uaccess.h> //for copy_to_user and related functions
+#include <linux/ioport.h> //for allocating memory
+#include <asm/io.h> //for ioremap
 
 MODULE_LICENSE("Dual BSD/GPL");
 
@@ -102,20 +104,16 @@ int pwm_init(void)
 	/* Allocating memory for the buffer */
 	for(i=0; i<SERVO_NUM; i++)
 	{
-		if(is_valid_signal(i))
-		{
-			servo[i] = pwm_create_device(i);
-		}
-		else
-		{
-			servo[i] = NULL;
-		}
+		servo[i] = pwm_create_device(i);
 	}
 
-	if(hw_init_pwm_device()!=0)
-	{
-		return -1;
-	}
+	//Allocate memory for I/O.
+	request_mem_region(0x4a310000, 14, "Data");
+	//Ioremap returns a virtual address in Data_pointer.
+	Data_pointer=ioremap(0x4a310000, 14);
+	//Allocate memeory to *mosi
+	set_val=kmalloc(sizeof(uint16_t), GFP_KERNEL);
+
 	return 0;
 }
 
@@ -124,7 +122,6 @@ int pwm_init(void)
 void pwm_exit(void)
 {
 	int i;
-	hw_close_pwm_device();
 	for(i=0; i<SERVO_NUM; i++)
 	{
 		if(servo[i] != NULL)
@@ -201,7 +198,6 @@ ssize_t pwm_write( struct file *file, const char *buf, size_t count, loff_t *f_p
 	{
 		device = (dev_channel_t*)(file->private_data);
 		device->position = res;
-		hw_set_pos(device->id, device->position);
 		return count;
 	}
 	printk(KERN_WARNING "incorrect number %s\r\n", tmpbuf);
