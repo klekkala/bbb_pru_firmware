@@ -17,7 +17,7 @@
 #include <asm/io.h> //for ioremap
 
 uint16_t *set_val;
-uint8_t *get_val;
+uint16_t *get_val;
 
 static void * Data_pointer;
 
@@ -27,7 +27,7 @@ static void * Data_pointer;
 #define MINOR_SHIFT 2
 
 #define SERVO_NUM 	7
-#define DEV_NAME 	"servo_drv/servo%02d"
+#define DEV_NAME 	"servo_drv/servo%d"
 #define SERVO_MIN	30
 #define SERVO_MAX	250
 #define SERVO_DEF	150
@@ -116,6 +116,7 @@ int pwm_init(void)
 	Data_pointer=ioremap(0x4a310000, 14);
 	//Allocate memeory to *mosi
 	set_val=kmalloc(sizeof(uint16_t), GFP_KERNEL);
+	get_val=kmalloc(sizeof(uint16_t), GFP_KERNEL);
 
 	return 0;
 }
@@ -201,6 +202,9 @@ ssize_t pwm_write( struct file *file, const char *buf, size_t count, loff_t *f_p
 	{
 		device = (dev_channel_t*)(file->private_data);
 		device->position = res;
+		set_val = res;
+		iowrite8(set_val, Data_pointer);
+    	//int len =sizeof(mosi_transfer);
 		return count;
 	}
 	printk(KERN_WARNING "incorrect number %s\r\n", tmpbuf);
