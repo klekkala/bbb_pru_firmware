@@ -140,7 +140,9 @@ void pwm_exit(void)
 
 module_init(pwm_init);
 module_exit(pwm_exit);
-
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Kiran Kumar Lekkala");
+MODULE_DESCRIPTION("Driver for PRU Servo");
 
 
 int pwm_open(struct inode *inode, struct file *file)
