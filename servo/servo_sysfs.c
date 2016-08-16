@@ -11,7 +11,7 @@
 #include <linux/fcntl.h> /* O_ACCMODE */
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
-//#include "pwm_drv_hw.h"
+#include "servo_hw.h"
 
 
 MODULE_LICENSE("Dual BSD/GPL");
@@ -92,42 +92,6 @@ dev_channel_t * pwm_create_device(int id)
 	return device;
 }
 
-struct miscdevice* create_enable_device(int id)
-{
-	int ret;
-	char *name;
-	struct miscdevice * dev;
-
-	if(gpio_request(pwm_on_off_gpios[id], "pwm_enabler")<0)
-	{
-		printk(KERN_ERR "Unable to create enable device %d - gpio request\n", id);
-		return NULL;
-	}
-	if(gpio_direction_output(pwm_on_off_gpios[id], 0)<0)
-	{
-		printk(KERN_ERR "Unable to create enable device %d - gpio dir\n", id);
-		return NULL;
-	}
-
-	dev = kmalloc(sizeof(struct miscdevice), GFP_KERNEL);
-	name = kmalloc(DEF_DEV_NAME, GFP_KERNEL);
-	memset(dev, 0, sizeof(struct miscdevice));
-
-	snprintf(name, DEF_DEV_NAME, EN_DEV_NAME, id);
-	dev->minor 	= id + MINOR_SHIFT + SERVO_NUM;
-	dev->name 	= name;
-
-	ret = misc_register(dev);
-    if (ret)
-	{
-	    printk(KERN_ERR "Unable to register enable misc device %s error %d\n", name, ret);
-		kfree(dev);
-		kfree(name);
-		dev = NULL;
-	}
-
-	return dev;
-}
 
 
 int pwm_init(void)
