@@ -16,7 +16,10 @@
 #include <linux/ioport.h> //for allocating memory
 #include <asm/io.h> //for ioremap
 
-MODULE_LICENSE("Dual BSD/GPL");
+uint16_t *set_val;
+uint8_t *get_val;
+
+static void * Data_pointer;
 
 #define ARRAY_LEN(X) (sizeof(X)/sizeof(X[0]))
 
