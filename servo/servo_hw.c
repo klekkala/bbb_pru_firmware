@@ -1,7 +1,7 @@
 #include <linux/kernel.h> /* printk() */
 #include <linux/ioport.h>
 #include <linux/io.h>
-#include <remoteproc.h>
+#include <linux/remoteproc.h>
 
 #include "servo_hw.h"
 
@@ -15,7 +15,7 @@
 #define PWM_PRU 		PRU_ID_PRU0
 #define GPIO_NAME "PWM_GPIOS"
 
-#define PWM_CHANNELS			32
+#define PWM_CHANNELS			7
 #define PWM_STEPS				8 /* always 8 */
 #define PWM_OUTPUT_PER_STEP 	((PWM_CHANNELS+PWM_STEPS-1)/PWM_STEPS)
 
