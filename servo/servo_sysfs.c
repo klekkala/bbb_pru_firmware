@@ -66,8 +66,6 @@ static struct file_operations pwm_fops = {
 
 dev_channel_t * servo[SERVO_NUM];
 
-struct miscdevice * enablers[EN_COUNT];
-
 
 dev_channel_t * pwm_create_device(int id)
 {
@@ -150,10 +148,6 @@ int pwm_init(void)
 		}
 	}
 
-	for(i=0; i<EN_COUNT; i++)
-	{
-		enablers[i] = create_enable_device(i);
-	}
 	if(hw_init_pwm_device()!=0)
 	{
 		return -1;
@@ -177,17 +171,6 @@ void pwm_exit(void)
 		}
 	}
 
-	for(i=0; i<EN_COUNT; i++)
-	{
-		if(enablers[i])
-		{
-			gpio_free(pwm_on_off_gpios[i]);
-			misc_deregister(enablers[i]);
-			kfree(enablers[i]->name);
-			kfree(enablers[i]);
-			enablers[i] = NULL;
-		}
-	}
 	printk(KERN_INFO "PWM for servo motors driver close\r\n");
 }
 
