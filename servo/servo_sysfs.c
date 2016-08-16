@@ -22,9 +22,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define MINOR_SHIFT 2
 
 #define SERVO_NUM 	7
-#define EN_COUNT	7
 #define DEV_NAME 	"servo_drv/servo%02d"
-#define EN_DEV_NAME 	"servo_drv/en%d"
 #define SERVO_MIN	30
 #define SERVO_MAX	250
 #define SERVO_DEF	150
@@ -39,10 +37,6 @@ int pwm_release(struct inode *inode, struct file *file);
 ssize_t pwm_read (struct file* file, char *buf, size_t count, loff_t * f_pos);
 ssize_t pwm_write(struct file* file, const char *buf, size_t count, loff_t * f_pos);
 
-int en_open(struct inode *inode, struct file *file);
-int en_release(struct inode *inode, struct file *file);
-ssize_t en_read (struct file* file, char *buf, size_t count, loff_t * f_pos);
-ssize_t en_write(struct file* file, const char *buf, size_t count, loff_t * f_pos);
 
 
 typedef struct
@@ -69,15 +63,6 @@ static struct file_operations pwm_fops = {
   release: pwm_release
 };
 
-static struct file_operations enable_ops =
-{
-		  owner: THIS_MODULE,
-		  read: en_read,
-		  write: en_write,
-		  open: en_open,
-		  release: en_release
-
-};
 
 dev_channel_t * servo[SERVO_NUM];
 
@@ -133,8 +118,6 @@ struct miscdevice* create_enable_device(int id)
 	snprintf(name, DEF_DEV_NAME, EN_DEV_NAME, id);
 	dev->minor 	= id + MINOR_SHIFT + SERVO_NUM;
 	dev->name 	= name;
-
-	dev->fops 	= &enable_ops;
 
 	ret = misc_register(dev);
     if (ret)
@@ -274,81 +257,4 @@ ssize_t pwm_write( struct file *file, const char *buf, size_t count, loff_t *f_p
 	}
 	printk(KERN_WARNING "incorrect number %s\r\n", tmpbuf);
 	return -1;
-}
-
-
-int en_open(struct inode *inode, struct file *file)
-{
-	int id = MINOR(inode->i_rdev) - MINOR_SHIFT - SERVO_NUM;
-
-	if(id >= EN_COUNT)
-	{
-		printk(KERN_ERR "incorrect enabler id: %d \r\n", id);
-		return -1;
-	}
-
-	file->private_data = (void*)pwm_on_off_gpios[id];
-	return 0;
-}
-
-int en_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-ssize_t en_read(struct file* file, char *buf, size_t count, loff_t * f_pos)
-{
-	int gpio;
-
-	gpio = (int)(file->private_data);
-	if(count<2)
-	{
-		return -1;
-	}
-	if(*f_pos>0)
-	{
-		return 0;
-	}
-	if(gpio_get_value(gpio))
-	{
-		buf[0]='1';
-	}
-	else
-	{
-		buf[0]='0';
-	}
-	buf[1]='\0';
-	(*f_pos)++;
-	return 1;
-}
-
-ssize_t en_write( struct file *file, const char *buf, size_t count, loff_t *f_pos)
-{
-	int gpio, val, err;
-	gpio = (int)(file->private_data);
-	char tmp[2];
-	if(count>5 || count<1)
-	{
-		printk(KERN_ERR "String too long: %d\n", count);
-		return -1;
-	}
-	
-	tmp[0] = buf[0];
-	tmp[1] = '\0';
-	err = kstrtoint(tmp, 10, &val);
-	if(err)
-	{
-		printk(KERN_ERR "not an int: %s\n", tmp);
-		return -1;
-	}
-	if(val)
-	{
-		gpio_set_value(gpio, 1);
-	}
-	else
-	{
-		gpio_set_value(gpio, 0);
-	}
-
-	return count;
 }
