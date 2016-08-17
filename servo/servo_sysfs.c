@@ -165,12 +165,15 @@ int pwm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-ssize_t pwm_read(struct file* file, char *buf, size_t count, loff_t * f_pos)
+ssize_t pwm_read(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	char tmpbuf[6];
 	dev_channel_t * device;
 	int j;
-	
+
+	//uint16_t get_val_transfer=ioread16(Data_pointer);
+	//int len = sizeof(get_val_transfer);
+
 	device = (dev_channel_t*)(file->private_data);
 	if(device == NULL)
 	{
@@ -181,11 +184,12 @@ ssize_t pwm_read(struct file* file, char *buf, size_t count, loff_t * f_pos)
 	for(j=0; *f_pos<5 && j<count; (*f_pos)++, j++)
 	{
 		buf[j]=tmpbuf[*f_pos];
+		copy_to_user(buf,tmpbuf+(*f_pose),len);
 	}
 	return j;
 }
 
-ssize_t pwm_write( struct file *file, const char *buf, size_t count, loff_t *f_pos)
+ssize_t pwm_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	char tmpbuf[6];
 	int err, res=0;
@@ -194,7 +198,7 @@ ssize_t pwm_write( struct file *file, const char *buf, size_t count, loff_t *f_p
 	if(count>5)
 		return -1;
 
-	strncpy(tmpbuf, buf, count);
+	copy_from_user(tmpbuf,buf,count);
 	tmpbuf[count]='\0';
 	
 	err = kstrtoint(tmpbuf, 10, &res);
@@ -202,8 +206,9 @@ ssize_t pwm_write( struct file *file, const char *buf, size_t count, loff_t *f_p
 	{
 		device = (dev_channel_t*)(file->private_data);
 		device->position = res;
-		set_val = res;
-		iowrite8(set_val, Data_pointer);
+
+		//set_val = res;
+		//iowrite8(set_val, Data_pointer);
     	//int len =sizeof(mosi_transfer);
 		return count;
 	}
