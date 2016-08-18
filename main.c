@@ -54,6 +54,18 @@ volatile far uint32_t CT_DDR __attribute__((cregister("DDR", near), peripheral))
 #define CHAN_NUM	2
 #define SERVO_NUM_PIN	8
 
+/******PIN mappings**********
+		"P8.36",	SERVO_PWR
+		"P8.27",	SERVO_1
+		"P8.28",	SERVO_2
+		"P8.29",	SERVO_3
+		"P8.30",	SERVO_4
+		"P8.39",	SERVO_5
+		"P8.40",	SERVO_6
+		"P8.41",	SERVO_7
+		"P8.42",	SERVO_8
+****************************/
+
 
 void main(void)
 {
