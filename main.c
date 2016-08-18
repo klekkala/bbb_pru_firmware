@@ -74,7 +74,16 @@ void main(void)
 	double pulse_width[SERVO_NUM_PIN],pulse_original[SERVO_NUM_PIN], time_step = 1/10000;
 	double period = 1/50;
 	int pin;
-	int i=0;
+	
+	pulse_width[0] = pDdr[6];
+	pulse_width[1] = pDdr[7];
+	pulse_width[2] = pDdr[4];
+	pulse_width[3] = pDdr[5];
+	pulse_width[4] = pDdr[0];
+	pulse_width[5] = pDdr[2];
+	pulse_width[6] = pDdr[1];
+	pulse_width[7] = pDdr[3];
+
 	/* Clear SYSCFG[STANDBY_INIT] to enable OCP master port */
 	CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
 
@@ -89,12 +98,11 @@ void main(void)
 
 
 
-	while(++i<10000){
+	while(1){
 
 		/* Pool for any receipt of interrupt on host 0 */
 		if ((__R31 & 0x40000000) != 0) {
 			for(pin=0;pin<=SERVO_NUM_PIN-1;pin++){
-				pulse_width[pin] = pDdr[pin];
 				pulse_width[pin] *= 0.01*period;
 				pulse_original[pin] = pulse_width[pin];
 			}

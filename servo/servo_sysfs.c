@@ -18,7 +18,6 @@
 
 uint16_t *set_val;
 uint16_t *get_val;
-
 static void * Data_pointer;
 
 #define ARRAY_LEN(X) (sizeof(X)/sizeof(X[0]))
@@ -171,8 +170,6 @@ ssize_t pwm_read(struct file *file, const char __user *buf, size_t count, loff_t
 	dev_channel_t * device;
 	int j, len;
 
-	//uint16_t get_val_transfer=ioread16(Data_pointer);
-	//int len = sizeof(get_val_transfer);
 
 	device = (dev_channel_t*)(file->private_data);
 	if(device == NULL)
@@ -180,37 +177,37 @@ ssize_t pwm_read(struct file *file, const char __user *buf, size_t count, loff_t
 		printk(KERN_ERR "device not initialized\r\n");
 		return -1;
 	}
-	snprintf(tmpbuf, 6, "%03d\n", device->position);
-	for(j=0; *f_pos<5 && j<count; (*f_pos)++, j++)
-	{
-		//buf[j]=tmpbuf[*f_pos];
-		len = sizeof(tmpbuf[*f_pos]);
-		copy_to_user(buf,tmpbuf+(*f_pos),len);
+	//uint16_t get_val_transfer=ioread16(Data_pointer);
+	//int len = sizeof(get_val_transfer);
+	//snprintf(tmpbuf, 6, "%03d\n", device->position);
+	uint8_t get_val_transfer=ioread8(Data_pointer+int(device->id));
+	int len = sizeof(get_val_transfer);
+	copy_to_user(buf,get_val_transfer,len);
 	}
 	return j;
 }
 
 ssize_t pwm_write(struct file *file, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	char tmpbuf[6];
-	int err, res=0;
+	//char tmpbuf[6];
+	//int err;
+	uint8_t set_val_transfer=0;
 	dev_channel_t * device;
 
 	if(count>5)
 		return -1;
 
-	copy_from_user(tmpbuf,buf,count);
-	tmpbuf[count]='\0';
+	copy_from_user(set_val,buf,count);
+	//tmpbuf[count]='\0';
 	
-	err = kstrtoint(tmpbuf, 10, &res);
 	if(res >= SERVO_MIN && res <= SERVO_MAX && err == 0)
 	{
 		device = (dev_channel_t*)(file->private_data);
-		device->position = res;
+		//device->position = res;
 
-		//set_val = res;
-		//iowrite8(set_val, Data_pointer);
-    	//int len =sizeof(mosi_transfer);
+		set_val_transfer = &set_val;
+		iowrite8(set_val_transfer, Data_pointer);
+    		int len =sizeof(mosi_transfer);
 		return count;
 	}
 	printk(KERN_WARNING "incorrect number %s\r\n", tmpbuf);
