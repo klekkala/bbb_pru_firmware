@@ -39,8 +39,8 @@ static void * Data_pointer;
 
 int pwm_open(struct inode *inode, struct file *file);
 int pwm_release(struct inode *inode, struct file *file);
-ssize_t pwm_read (struct file* file, char *buf, size_t count, loff_t * f_pos);
-ssize_t pwm_write(struct file* file, const char *buf, size_t count, loff_t * f_pos);
+ssize_t pwm_read (struct file *file,const char __user *buf, size_t count,loff_t *f_pos);
+ssize_t pwm_write(struct file *file,const char __user *buf, size_t count,loff_t *f_pos);
 
 
 
@@ -165,11 +165,11 @@ int pwm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-ssize_t pwm_read(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+ssize_t pwm_read(struct file *file, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	char tmpbuf[6];
 	dev_channel_t * device;
-	int j;
+	int j, len;
 
 	//uint16_t get_val_transfer=ioread16(Data_pointer);
 	//int len = sizeof(get_val_transfer);
@@ -183,13 +183,14 @@ ssize_t pwm_read(struct file *filp, const char __user *buf, size_t count, loff_t
 	snprintf(tmpbuf, 6, "%03d\n", device->position);
 	for(j=0; *f_pos<5 && j<count; (*f_pos)++, j++)
 	{
-		buf[j]=tmpbuf[*f_pos];
-		copy_to_user(buf,tmpbuf+(*f_pose),len);
+		//buf[j]=tmpbuf[*f_pos];
+		len = sizeof(tmpbuf[*f_pos]);
+		copy_to_user(buf,tmpbuf+(*f_pos),len);
 	}
 	return j;
 }
 
-ssize_t pwm_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+ssize_t pwm_write(struct file *file, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	char tmpbuf[6];
 	int err, res=0;
