@@ -1,5 +1,4 @@
 
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h> /* printk() */
@@ -16,8 +15,9 @@
 #include <linux/ioport.h> //for allocating memory
 #include <asm/io.h> //for ioremap
 
-uint16_t *set_val;
-uint16_t *get_val;
+uint8_t *set_val;
+uint8_t *get_val;
+
 static void * Data_pointer;
 
 #define ARRAY_LEN(X) (sizeof(X)/sizeof(X[0]))
@@ -166,50 +166,41 @@ int pwm_release(struct inode *inode, struct file *file)
 
 ssize_t pwm_read(struct file *file, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	char tmpbuf[6];
 	dev_channel_t * device;
-	int j, len;
-
 
 	device = (dev_channel_t*)(file->private_data);
+	uint8_t offset = device->id;
 	if(device == NULL)
 	{
 		printk(KERN_ERR "device not initialized\r\n");
 		return -1;
 	}
-	//uint16_t get_val_transfer=ioread16(Data_pointer);
-	//int len = sizeof(get_val_transfer);
 	//snprintf(tmpbuf, 6, "%03d\n", device->position);
-	uint8_t get_val_transfer=ioread8(Data_pointer+int(device->id));
+	uint8_t get_val_transfer=ioread8(Data_pointer+offset);
 	int len = sizeof(get_val_transfer);
-	copy_to_user(buf,get_val_transfer,len);
-	}
-	return j;
+	copy_to_user(buf,&get_val_transfer,len);
+	return len;
 }
 
 ssize_t pwm_write(struct file *file, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	//char tmpbuf[6];
-	//int err;
 	uint8_t set_val_transfer=0;
 	dev_channel_t * device;
-
 	if(count>5)
 		return -1;
 
 	copy_from_user(set_val,buf,count);
 	//tmpbuf[count]='\0';
 	
-	if(res >= SERVO_MIN && res <= SERVO_MAX && err == 0)
-	{
+	//if()
+	//{
 		device = (dev_channel_t*)(file->private_data);
 		//device->position = res;
+		uint8_t offset = device->id;
 
 		set_val_transfer = &set_val;
-		iowrite8(set_val_transfer, Data_pointer);
-    		int len =sizeof(mosi_transfer);
-		return count;
-	}
-	printk(KERN_WARNING "incorrect number %s\r\n", tmpbuf);
-	return -1;
+		iowrite8(set_val_transfer, Data_pointer + offset);
+    		int len =sizeof(set_val_transfer);
+		return len;
+	//}
 }
