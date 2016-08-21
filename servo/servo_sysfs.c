@@ -186,21 +186,19 @@ ssize_t pwm_write(struct file *file, const char __user *buf, size_t count, loff_
 {
 	uint8_t set_val_transfer=0;
 	dev_channel_t * device;
+	int res = 0, err;
 	if(count>5)
 		return -1;
 
 	copy_from_user(set_val,buf,count);
+	set_val[count] = '\0';
 	//tmpbuf[count]='\0';
-	
-	//if()
-	//{
-		device = (dev_channel_t*)(file->private_data);
-		//device->position = res;
-		uint8_t offset = device->id;
+	device = (dev_channel_t*)(file->private_data);
+	//device->position = res;
+	uint8_t offset = device->id;
 
-		set_val_transfer = &set_val;
-		iowrite8(set_val_transfer, Data_pointer + offset);
-    		int len =sizeof(set_val_transfer);
-		return len;
-	//}
+	set_val_transfer = &set_val;
+	iowrite8(set_val_transfer, Data_pointer + offset);
+    	int len =sizeof(set_val_transfer);
+	return len;
 }
