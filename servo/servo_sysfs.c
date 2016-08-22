@@ -25,7 +25,7 @@ static void * Data_pointer;
 
 #define MINOR_SHIFT 2
 
-#define SERVO_NUM 	7
+#define SERVO_NUM 	8
 #define DEV_NAME 	"servo_drv/servo%d"
 #define SERVO_MIN	30
 #define SERVO_MAX	250
@@ -110,12 +110,12 @@ int pwm_init(void)
 	}
 
 	//Allocate memory for I/O.
-	request_mem_region(0x4a310000, 14, "Data");
+	request_mem_region(0x4a310000, 8, "Data");
 	//Ioremap returns a virtual address in Data_pointer.
-	Data_pointer=ioremap(0x4a310000, 14);
-	//Allocate memeory to *mosi
-	set_val=kmalloc(sizeof(uint16_t), GFP_KERNEL);
-	get_val=kmalloc(sizeof(uint16_t), GFP_KERNEL);
+	Data_pointer=ioremap(0x4a310000, 8);
+	//Allocate memeory to pointers
+	set_val=kmalloc(sizeof(uint8_t), GFP_KERNEL);
+	get_val=kmalloc(sizeof(uint8_t), GFP_KERNEL);
 
 	return 0;
 }
@@ -169,14 +169,14 @@ ssize_t pwm_read(struct file *file, const char __user *buf, size_t count, loff_t
 	dev_channel_t * device;
 
 	device = (dev_channel_t*)(file->private_data);
-	uint8_t offset = device->id;
+	//uint8_t offset = device->id;
 	if(device == NULL)
 	{
 		printk(KERN_ERR "device not initialized\r\n");
 		return -1;
 	}
 	//snprintf(tmpbuf, 6, "%03d\n", device->position);
-	uint8_t get_val_transfer=ioread8(Data_pointer+offset);
+	uint8_t get_val_transfer=ioread8(Data_pointer);
 	int len = sizeof(get_val_transfer);
 	copy_to_user(buf,&get_val_transfer,len);
 	return len;
@@ -198,7 +198,7 @@ ssize_t pwm_write(struct file *file, const char __user *buf, size_t count, loff_
 	uint8_t offset = device->id;
 
 	set_val_transfer = &set_val;
-	iowrite8(set_val_transfer, Data_pointer + offset);
+	iowrite8(set_val, Data_pointer);
     	int len =sizeof(set_val_transfer);
 	return len;
 }
