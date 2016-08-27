@@ -4,8 +4,8 @@ The PRU in the beagelbone blue is used to support 8 servo/ESC(s) and an addition
 
 ###Servo firmware:
 Before installing you need to setup your board with the TI PRU support package and compiler.
-`mkdir /usr/share/ti/cgt-pru/bin`
-`cd /usr/share/ti/cgt-pru/bin`
+`mkdir /usr/share/ti/cgt-pru/bin  `
+`cd /usr/share/ti/cgt-pru/bin  `
 `ln -s /usr/bin/clpru clpru`
 `echo -e "\nexport PRU_CGT=/usr/share/ti/cgt-pru\n" >> ~/.bashrc`
 `. ~/.bashrc`
